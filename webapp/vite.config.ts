@@ -10,4 +10,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    outDir: 'dist',
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'TS_ERROR') return
+        warn(warning)
+      }
+    }
+  },
+  server: {
+    port: 5173,
+    host: true
+  }
 })
