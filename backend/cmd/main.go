@@ -1,13 +1,30 @@
 package main
 
 import (
-	"myshop-tg/internal/bot"
-	"myshop-tg/internal/database"
+	"log"
+	"myshop/internal/delivery/http"
+	"myshop/internal/repository"
+	"myshop/internal/usecase"
+	"myshop/pkg/db"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	db := database.Connect()
-	defer db.Close()
+	// DB
+	database, err := db.NewPostgres()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	bot.Start(db)
+	// layers
+	productRepo := repository.NewProductRepository(database)
+	productUC := usecase.NewProductUsecase(productRepo)
+	handler := http.NewHandler(productUC)
+
+	// server
+	r := gin.Default()
+	handler.Register(r)
+
+	r.Run(":8080")
 }
