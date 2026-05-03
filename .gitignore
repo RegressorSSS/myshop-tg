@@ -36,4 +36,6 @@ yarn-error.log*
 
 # Go
 bin/
-pkg/
+pkg/backend/main
+backend/cmd/main
+backend/main

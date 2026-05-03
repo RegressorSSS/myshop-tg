@@ -1,27 +1,59 @@
+
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useCart } from '@/hooks/useCart'
 import { Product } from '@/types'
 
-// В реальности данные придут с сервера
-const PRODUCTS_DB: Record<number, Product> = {
-  1: { id: 1, name: 'Mizuno Morelia Neo IV', price: 24990, oldPrice: 29990, image: 'https://placehold.co/600x600/f5f5f5/333?text=Mizuno+Neo', description: 'Легендарная серия Morelia возвращается с новыми технологиями. Натуральная кожа kangaroo, облегченный вес и идеальный контроль мяча.', category: 'Бутсы', isNew: true },
-}
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
 export default function ProductDetail() {
-  const { id } = useParams()
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { addToCart } = useCart()
-  const product = PRODUCTS_DB[Number(id)]
+  const [product, setProduct] = useState<Product | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // src/pages/ProductDetail.tsx
+
+useEffect(() => {
+  if (!id) return
+  
+  const fetchProduct = async () => {
+    try {
+      const res = await fetch(`${API_URL}/products/${id}`)
+      if (!res.ok) throw new Error('Product not found')
+      
+      // ✅ ИСПРАВЛЕННАЯ СТРОКА:
+      const data = await res.json()
+      
+      setProduct(data)
+    } catch (err) {
+      console.error('Fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+  fetchProduct()
+}, [id])
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Загрузка...</div>
+  }
 
   if (!product) {
-    return <div className="p-10 text-center">Товар не найден <br/><Button onClick={() => navigate('/')}>На главную</Button></div>
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <p className="text-lg mb-4">Товар не найден</p>
+        <Button onClick={() => navigate('/')}>← На главную</Button>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-white pb-10">
-      <header className="border-b p-4 flex items-center gap-4">
+      <header className="border-b p-4 flex items-center gap-4 sticky top-0 bg-white z-50">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>←</Button>
         <h1 className="text-lg font-medium truncate">{product.name}</h1>
       </header>
@@ -29,17 +61,18 @@ export default function ProductDetail() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-gray-100 rounded-lg p-8 flex items-center justify-center aspect-square">
-            <img src={product.image} alt={product.name} className="max-w-full max-h-full object-contain mix-blend-multiply" />
+            <img 
+              src={product.image_url || 'https://placehold.co/600x600/f5f5f5/333?text=No+Image'} 
+              alt={product.name} 
+              className="max-w-full max-h-full object-contain mix-blend-multiply"
+            />
           </div>
           <div className="flex flex-col justify-center space-y-6">
             <div>
               <h2 className="text-3xl font-bold mb-2">{product.name}</h2>
               <p className="text-gray-500">{product.category}</p>
             </div>
-            <div className="text-3xl font-bold">
-              {product.price} ₽
-              {product.oldPrice && <span className="ml-3 text-xl text-gray-400 line-through">{product.oldPrice} ₽</span>}
-            </div>
+            <div className="text-3xl font-bold">{product.price} ₽</div>
             <p className="text-gray-600 leading-relaxed">{product.description}</p>
             
             <div className="flex gap-4 pt-4">

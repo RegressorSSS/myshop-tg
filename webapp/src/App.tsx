@@ -1,20 +1,39 @@
+// src/App.tsx
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { WebApp } from '@twa-dev/sdk'
+import { CartProvider } from './contexts/CartContext' // <-- ПРОВЕРЬ ЭТОТ ИМПОРТ
+import BottomNav from './components/BottomNav'
 import Home from './pages/Home'
 import ProductDetail from './pages/ProductDetail'
 import Cart from './pages/Cart'
+import Profile from './pages/Profile'
+import ProfileOrders from './pages/ProfileOrders'
+
+function Layout() {
+  const location = useLocation()
+  const hideNav = location.pathname.startsWith('/product/')
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/orders" element={<ProfileOrders />} />
+      </Routes>
+      
+      {!hideNav && <BottomNav />}
+    </div>
+  )
+}
 
 function App() {
   useEffect(() => {
-    // Проверяем, что WebApp существует (работаем внутри Telegram)
     if (WebApp) {
-      // Сообщаем Telegram, что приложение готово
       WebApp.ready()
-      // Разворачиваем на весь экран
       WebApp.expand()
-      
-      // Адаптация цветов под тему Telegram
       if (WebApp.colorScheme === 'dark') {
         document.documentElement.classList.add('dark')
       }
@@ -23,11 +42,9 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/product/:id" element={<ProductDetail />} />
-        <Route path="/cart" element={<Cart />} />
-      </Routes>
+      <CartProvider>
+        <Layout />
+      </CartProvider>
     </BrowserRouter>
   )
 }

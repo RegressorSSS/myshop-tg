@@ -1,7 +1,0 @@
-package usecase
-
-import "errors"
-
-var (
-	ErrInvalidPrice = errors.New("invalid price")
-)
