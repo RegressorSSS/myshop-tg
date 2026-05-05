@@ -1,86 +1,67 @@
-// backend/cmd/main.go
 package main
 
 import (
-	"log"
-	"net/http"
-
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
+	"github.com/joho/godotenv"
 
-	"myshop-tg/backend/internal/config"
 	"myshop-tg/backend/internal/database"
 	"myshop-tg/backend/internal/handlers"
+	"myshop-tg/backend/internal/middleware"
+	"myshop-tg/backend/pkg/config"
 )
 
 func main() {
-	// Загрузка конфигурации
+	// Загрузка .env
+	_ = godotenv.Load()
 	cfg := config.Load()
 
-	// Подключение к базе данных
+	// Подключение к БД
 	db, err := database.New(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		panic(err)
 	}
 	defer db.Close()
 
-	// Создаём таблицу products, если её нет
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS products (
-			id SERIAL PRIMARY KEY,
-			name TEXT NOT NULL,
-			price INTEGER NOT NULL,
-			description TEXT,
-			image_url TEXT,
-			category TEXT,
-			is_new BOOLEAN DEFAULT false,
-			created_at TIMESTAMP DEFAULT NOW()
-		)
-	`)
-	if err != nil {
-		log.Fatalf("Failed to create products table: %v", err)
-	}
+	// Инициализация хендлеров
+	productHandler := handlers.NewProductHandler(db)
 
-	// Инициализация Gin
+	// Gin router
 	r := gin.Default()
 
-	// Настройка CORS для локальной разработки
-	// В продакшене добавьте сюда свой домен
-	allowedOrigins := []string{cfg.FrontendURL, "http://localhost:5173", "http://localhost:4173"}
-
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     allowedOrigins,
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-	}))
-
-	// Health check endpoint
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	// CORS (если фронтенд на другом домене)
+	r.Use(func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, X-Telegram-Init-Data")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
 	})
 
-	// API routes
-	api := r.Group("/api")
+	// Публичные роуты
+	public := r.Group("/api")
 	{
-		// Инициализация хендлеров
-		ph := handlers.NewProductHandler(db)
-
-		// CRUD для товаров
-		api.GET("/products", ph.List)
-		api.GET("/products/:id", ph.Get)
-		api.POST("/products", ph.Create)       // TODO: добавить проверку админа
-		api.PUT("/products/:id", ph.Update)    // TODO: добавить проверку админа
-		api.DELETE("/products/:id", ph.Delete) // TODO: добавить проверку админа
+		public.GET("/products", productHandler.List)
+		public.GET("/products/:id", productHandler.Get)
 	}
 
-	// Запуск сервера
-	addr := ":" + cfg.ServerPort
-	log.Printf("Server starting on %s", addr)
+	// Защищённые роуты (требуют Telegram auth)
+	protected := r.Group("/api")
+	protected.Use(middleware.TelegramAuth(cfg.BotToken))
+	{
+		protected.POST("/products", productHandler.Create)
+		protected.PUT("/products/:id", productHandler.Update)
+		protected.DELETE("/products/:id", productHandler.Delete)
+		protected.POST("/upload", handlers.UploadImage) // ← загрузка фото
+	}
 
-	if err := r.Run(addr); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+	// Раздача загруженных изображений
+	r.Static("/uploads", "./uploads")
+
+	// Запуск сервера
+	if err := r.Run(":" + cfg.Port); err != nil {
+		panic(err)
 	}
 }
