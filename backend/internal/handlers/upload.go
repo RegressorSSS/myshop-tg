@@ -22,7 +22,6 @@ var AllowedTypes = map[string]bool{
 
 // UploadImage обрабатывает загрузку изображения
 func UploadImage(c *gin.Context) {
-	// Ограничиваем размер запроса
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, MaxUploadSize)
 
 	file, err := c.FormFile("image")
@@ -31,32 +30,27 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	// Валидация расширения
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if !AllowedTypes[ext] {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "File type not allowed"})
 		return
 	}
 
-	// Генерируем уникальное имя файла
 	buf := make([]byte, 16)
-	_, _ = rand.Read(buf)
+	rand.Read(buf)
 	uniqueName := hex.EncodeToString(buf) + ext
 	filePath := filepath.Join(UploadDir, uniqueName)
 
-	// Создаём директорию, если не существует
 	if err := os.MkdirAll(UploadDir, 0755); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upload directory"})
 		return
 	}
 
-	// Сохраняем файл
 	if err := c.SaveUploadedFile(file, filePath); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
 		return
 	}
 
-	// Возвращаем публичный URL
 	publicURL := "/uploads/" + uniqueName
 	c.JSON(http.StatusCreated, gin.H{"url": publicURL, "filename": uniqueName})
 }

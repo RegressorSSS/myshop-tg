@@ -8,11 +8,11 @@ import (
 )
 
 type Config struct {
-	ServerPort       string
-	DatabaseURL      string
-	FrontendURL      string
-	TelegramBotToken string
-	AdminUserID      int64
+	ServerPort       string `env:"SERVER_PORT"`
+	DatabaseURL      string `env:"DATABASE_URL"`
+	FrontendURL      string `env:"FRONTEND_URL"`
+	TelegramBotToken string `env:"TELEGRAM_BOT_TOKEN"`
+	AdminUserID      int64  `env:"ADMIN_USER_ID"`
 }
 
 func Load() *Config {

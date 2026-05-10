@@ -4,10 +4,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
+	"myshop-tg/backend/internal/config"
 	"myshop-tg/backend/internal/database"
 	"myshop-tg/backend/internal/handlers"
 	"myshop-tg/backend/internal/middleware"
-	"myshop-tg/backend/pkg/config"
 )
 
 func main() {
@@ -23,12 +23,12 @@ func main() {
 	defer db.Close()
 
 	// Инициализация хендлеров
-	productHandler := handlers.NewProductHandler(db)
+	productHandler := handlers.NewProductHandler(db, cfg.AdminUserID)
 
 	// Gin router
 	r := gin.Default()
 
-	// CORS (если фронтенд на другом домене)
+	// CORS
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -40,28 +40,31 @@ func main() {
 		c.Next()
 	})
 
-	// Публичные роуты
+	// Публичные роуты (доступны всем)
 	public := r.Group("/api")
 	{
-		public.GET("/products", productHandler.List)
-		public.GET("/products/:id", productHandler.Get)
+		public.GET("/products", productHandler.List)    // <-- Только здесь
+		public.GET("/products/:id", productHandler.Get) // <-- Только здесь
+
+		public.POST("/upload", handlers.UploadImage)
 	}
 
-	// Защищённые роуты (требуют Telegram auth)
+	// Защищённые роуты (требуют Telegram auth и прав админа для POST/PUT/DELETE)
 	protected := r.Group("/api")
-	protected.Use(middleware.TelegramAuth(cfg.BotToken))
+	protected.Use(middleware.TelegramAuth(cfg.TelegramBotToken))
 	{
-		protected.POST("/products", productHandler.Create)
-		protected.PUT("/products/:id", productHandler.Update)
-		protected.DELETE("/products/:id", productHandler.Delete)
-		protected.POST("/upload", handlers.UploadImage) // ← загрузка фото
+		// GET роуты уже есть в public, дублировать их тут НЕ НАДО
+
+		protected.POST("/products", productHandler.Create)       // Только админ
+		protected.PUT("/products/:id", productHandler.Update)    // Только админ
+		protected.DELETE("/products/:id", productHandler.Delete) // Только админ
 	}
 
 	// Раздача загруженных изображений
 	r.Static("/uploads", "./uploads")
 
 	// Запуск сервера
-	if err := r.Run(":" + cfg.Port); err != nil {
+	if err := r.Run(":" + cfg.ServerPort); err != nil {
 		panic(err)
 	}
 }

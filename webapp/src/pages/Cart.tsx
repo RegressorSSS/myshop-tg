@@ -1,23 +1,66 @@
-// src/pages/Cart.tsx
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '@/hooks/useCart'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Minus, Plus, ShoppingBag } from 'lucide-react'
+import { Minus, Plus, ShoppingBag, AlertCircle } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 import { WebApp } from '@twa-dev/sdk'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
 export default function Cart() {
   const navigate = useNavigate()
-  // Берём данные и функции из ГЛОБАЛЬНОГО контекста
-  const { items, updateQuantity, total, count } = useCart()
+  const { items, updateQuantity, total, count, clearCart } = useCart()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [comment, setComment] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
-  const handleCheckout = () => {
-    if (WebApp.HapticFeedback) WebApp.HapticFeedback.notificationOccurred('success')
-    // TODO: Здесь будет отправка заказа на бэкенд
-    alert('Оформление заказа подключим на следующем шаге!')
+  const handleCheckout = async () => {
+    if (items.length === 0) return
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const initData = WebApp.initData || ''
+
+      const res = await fetch(`${API_URL}/api/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Telegram-Init-Data': encodeURIComponent(initData),
+        },
+        body: JSON.stringify({
+          items: items.map(i => ({
+            product_id: i.id,
+            quantity: i.quantity,
+            size: i.size || '',
+            color: i.color || '',
+          })),
+          total_amount: total,
+          comment: comment,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Ошибка оформления заказа')
+      }
+
+      // Успешно
+      clearCart()
+      WebApp.showAlert('Заказ успешно оформлен! Мы свяжемся с вами.')
+      setTimeout(() => navigate('/'), 2000)
+
+    } catch (err: any) {
+      setError(err.message)
+      WebApp.showAlert('Ошибка: ' + err.message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  // Если корзина пуста
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 pb-24">
@@ -31,12 +74,10 @@ export default function Cart() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
-      {/* Шапка */}
       <header className="bg-white border-b p-4 flex items-center justify-center sticky top-0 z-50">
         <h1 className="text-lg font-bold">Корзина ({count})</h1>
       </header>
 
-      {/* Список товаров */}
       <div className="p-4 space-y-4">
         {items.map(item => (
           <Card key={item.id} className="p-4 flex gap-4">
@@ -51,15 +92,16 @@ export default function Cart() {
               <div>
                 <h3 className="font-medium line-clamp-1">{item.name}</h3>
                 <p className="text-sm text-gray-500">{item.price.toLocaleString()} ₽</p>
+                {item.size && <p className="text-xs text-gray-400">Размер: {item.size}</p>}
+                {item.color && <p className="text-xs text-gray-400">Цвет: {item.color}</p>}
               </div>
               <div className="flex items-center justify-between mt-2">
-                {/* Кнопки количества */}
                 <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                    onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
                   >
                     <Minus className="w-4 h-4" />
                   </Button>
@@ -78,16 +120,33 @@ export default function Cart() {
             </div>
           </Card>
         ))}
+
+        {/* Комментарий к заказу */}
+        <div className="p-4 bg-white rounded-lg">
+          <label className="block text-sm font-medium mb-2">Комментарий к заказу</label>
+          <Textarea
+            placeholder="Например: срочная доставка, упаковать в подарочную упаковку..."
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={3}
+          />
+        </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 text-red-700 rounded-lg flex items-center gap-2">
+            <AlertCircle className="w-5 h-5" />
+            {error}
+          </div>
+        )}
       </div>
 
-      {/* Фиксированный футер с итогом */}
       <div className="fixed bottom-20 left-0 right-0 bg-white border-t p-4 shadow-lg z-40">
         <div className="flex justify-between items-center mb-3">
           <span className="text-gray-600">Итого:</span>
           <span className="text-2xl font-bold">{total.toLocaleString()} ₽</span>
         </div>
-        <Button className="w-full h-12 text-lg" onClick={handleCheckout}>
-          Оформить заказ
+        <Button className="w-full h-12 text-lg" onClick={handleCheckout} disabled={isSubmitting}>
+          {isSubmitting ? 'Отправка...' : 'Оформить заказ'}
         </Button>
       </div>
     </div>

@@ -13,31 +13,29 @@ import (
 )
 
 type ProductHandler struct {
-	db *sqlx.DB
+	db      *sqlx.DB
+	adminID int64 // Храним ID админа из конфига
 }
 
-func NewProductHandler(db *sqlx.DB) *ProductHandler {
-	return &ProductHandler{db: db}
+func NewProductHandler(db *sqlx.DB, adminID int64) *ProductHandler {
+	return &ProductHandler{db: db, adminID: adminID}
 }
 
 // GET /api/products — список товаров с фильтрацией
 func (h *ProductHandler) List(c *gin.Context) {
-	// Парсим параметры фильтрации
 	category := c.Query("category")
 	search := c.Query("search")
 	minPrice := c.Query("min_price")
 	maxPrice := c.Query("max_price")
 	isNew := c.Query("new") == "true"
 	isSale := c.Query("sale") == "true"
-	sortBy := c.DefaultQuery("sort", "created_at") // created_at, price_asc, price_desc, name
+	sortBy := c.DefaultQuery("sort", "created_at")
 	limit := c.DefaultQuery("limit", "20")
 	offset := c.DefaultQuery("offset", "0")
 
-	// Базовый запрос
 	query := `SELECT * FROM products WHERE 1=1`
 	args := []interface{}{}
 
-	// Применяем фильтры
 	if category != "" {
 		query += " AND category = $" + fmt.Sprint(len(args)+1)
 		args = append(args, category)
@@ -62,7 +60,6 @@ func (h *ProductHandler) List(c *gin.Context) {
 		query += " AND is_sale = true"
 	}
 
-	// Сортировка (белый список!)
 	switch sortBy {
 	case "price_asc":
 		query += " ORDER BY price ASC"
@@ -74,7 +71,6 @@ func (h *ProductHandler) List(c *gin.Context) {
 		query += " ORDER BY created_at DESC"
 	}
 
-	// Пагинация
 	query += " LIMIT $" + fmt.Sprint(len(args)+1) + " OFFSET $" + fmt.Sprint(len(args)+2)
 	args = append(args, limit, offset)
 
@@ -84,10 +80,9 @@ func (h *ProductHandler) List(c *gin.Context) {
 		return
 	}
 
-	// Возвращаем с метаданными
 	c.JSON(http.StatusOK, gin.H{
 		"products": products,
-		"total":    len(products), // для простоты; в проде нужен COUNT(*)
+		"total":    len(products),
 		"limit":    limit,
 		"offset":   offset,
 	})
@@ -107,14 +102,12 @@ func (h *ProductHandler) Get(c *gin.Context) {
 
 // POST /api/products — создать товар (только админ)
 func (h *ProductHandler) Create(c *gin.Context) {
-	// Проверка на админа
 	user, ok := middleware.GetUserFromContext(c)
 	if !ok {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
-	const AdminID = 123456789 // ЗАМЕНИ НА СВОЙ ID
-	if user.ID != AdminID {
+	if user.ID != h.adminID {
 		c.JSON(403, gin.H{"error": "Admin access required"})
 		return
 	}
@@ -141,15 +134,14 @@ func (h *ProductHandler) Create(c *gin.Context) {
 }
 
 // PUT /api/products/:id — обновить товар (только админ)
+// PUT /api/products/:id — обновить товар (только админ)
 func (h *ProductHandler) Update(c *gin.Context) {
-	// Проверка на админа
 	user, ok := middleware.GetUserFromContext(c)
 	if !ok {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
-	const AdminID = 123456789
-	if user.ID != AdminID {
+	if user.ID != h.adminID {
 		c.JSON(403, gin.H{"error": "Admin access required"})
 		return
 	}
@@ -161,7 +153,6 @@ func (h *ProductHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Динамический UPDATE: обновляем только переданные поля
 	updates := []string{}
 	args := []interface{}{}
 	argIndex := 1
@@ -213,11 +204,13 @@ func (h *ProductHandler) Update(c *gin.Context) {
 	}
 
 	// Добавляем updated_at
-	updates = append(updates, fmt.Sprintf("updated_at=NOW()"))
+	updates = append(updates, "updated_at=NOW()")
 
-	// Добавляем WHERE id=$X
+	// Добавляем ID для WHERE
 	args = append(args, id)
-	query := fmt.Sprintf("UPDATE products SET %s WHERE id=$%d", strings.Join(updates, ", "), argIndex+1)
+	whereIndex := len(args) // Индекс для WHERE id=$X
+
+	query := fmt.Sprintf("UPDATE products SET %s WHERE id=$%d", strings.Join(updates, ", "), whereIndex)
 
 	_, err := h.db.Exec(query, args...)
 	if err != nil {
@@ -230,14 +223,12 @@ func (h *ProductHandler) Update(c *gin.Context) {
 
 // DELETE /api/products/:id — удалить товар (только админ)
 func (h *ProductHandler) Delete(c *gin.Context) {
-	// Проверка на админа
 	user, ok := middleware.GetUserFromContext(c)
 	if !ok {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
-	const AdminID = 123456789
-	if user.ID != AdminID {
+	if user.ID != h.adminID {
 		c.JSON(403, gin.H{"error": "Admin access required"})
 		return
 	}

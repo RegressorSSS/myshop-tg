@@ -1,10 +1,9 @@
-
 import { useEffect, useState } from 'react'
 import { WebApp } from '@twa-dev/sdk'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useNavigate } from 'react-router-dom'
-import { ChevronRight, Package, Gift, Settings, HelpCircle } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom' // <-- Добавил Link
+import { ChevronRight, Package, Gift, Settings, HelpCircle, Shield } from 'lucide-react' // <-- Добавил Shield
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -49,21 +48,38 @@ export default function Profile() {
 
       {/* Меню */}
       <div className="px-4 mt-4 space-y-2">
+        
+        {/* Кнопка Админки (видна всем, но работать будет только если ты админ по ID в .env) */}
+        <Link to="/admin/create-product">
+          <Button variant="outline" className="w-full justify-start gap-3 h-12 text-base border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700">
+            <Shield className="w-5 h-5" /> Админка: Добавить товар
+          </Button>
+        </Link>
+
+        <div className="border-t my-2"></div>
+
         <Button 
           variant="ghost" 
           className="w-full justify-start gap-3 h-12 text-base" 
           onClick={() => navigate('/profile/orders')}
         >
           <Package className="w-5 h-5 text-gray-500" /> История заказов
+          <ChevronRight className="w-4 h-4 ml-auto text-gray-400" />
         </Button>
+        
         <Button variant="ghost" className="w-full justify-start gap-3 h-12 text-base">
           <Gift className="w-5 h-5 text-gray-500" /> Промокоды
+          <ChevronRight className="w-4 h-4 ml-auto text-gray-400" />
         </Button>
+        
         <Button variant="ghost" className="w-full justify-start gap-3 h-12 text-base">
           <Settings className="w-5 h-5 text-gray-500" /> Настройки
+          <ChevronRight className="w-4 h-4 ml-auto text-gray-400" />
         </Button>
+        
         <Button variant="ghost" className="w-full justify-start gap-3 h-12 text-base">
           <HelpCircle className="w-5 h-5 text-gray-500" /> Помощь
+          <ChevronRight className="w-4 h-4 ml-auto text-gray-400" />
         </Button>
       </div>
     </div>

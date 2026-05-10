@@ -1,0 +1,7 @@
+useEffect(() => {
+  // Принудительно обновляем layout после загрузки
+  const timer = setTimeout(() => {
+    window.dispatchEvent(new Event('resize'));
+  }, 300);
+  return () => clearTimeout(timer);
+}, []);
