@@ -145,7 +145,7 @@ export default function Home() {
               </CardContent>
               
               <CardFooter className="p-3 pt-0 flex gap-2">
-                {p.stock > 0 ? (
+                {p.stock !== undefined && p.stock > 0 ? (
                   <Button className="flex-1 text-xs h-8" onClick={(e) => { e.stopPropagation(); addToCart(p) }}>
                     В корзину
                   </Button>

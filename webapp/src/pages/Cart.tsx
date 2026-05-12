@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Minus, Plus, ShoppingBag, AlertCircle } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
-import { WebApp } from '@twa-dev/sdk'
+import  WebApp  from '@twa-dev/sdk'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 

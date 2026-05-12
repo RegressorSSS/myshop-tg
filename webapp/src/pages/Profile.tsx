@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { WebApp } from '@twa-dev/sdk'
+import  WebApp  from '@twa-dev/sdk'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useNavigate, Link } from 'react-router-dom' // <-- Добавил Link

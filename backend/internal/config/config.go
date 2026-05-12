@@ -25,7 +25,7 @@ func Load() *Config {
 
 	return &Config{
 		ServerPort:       getEnv("SERVER_PORT", "8080"),
-		DatabaseURL:      getEnv("DATABASE_URL", "postgres://dzhumali:12345@localhost:5433/myshop?sslmode=disable"),
+		DatabaseURL:      getEnv("DATABASE_URL", "postgres://dzhumali:12345@localhost:5432/myshop?sslmode=disable"),
 		FrontendURL:      getEnv("FRONTEND_URL", "http://localhost:5173"),
 		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 		AdminUserID:      getEnvInt64("ADMIN_USER_ID", 0),

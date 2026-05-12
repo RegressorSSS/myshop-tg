@@ -1,7 +1,7 @@
 // src/App.tsx
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { WebApp } from '@twa-dev/sdk'
+//import  WebApp  from '@twa-dev/sdk'
 import { CartProvider } from './contexts/CartContext' 
 import BottomNav from './components/BottomNav'
 import Home from './pages/Home'
