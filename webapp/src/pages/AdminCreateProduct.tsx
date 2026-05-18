@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import { api } from '../lib/api' // ✅ Добавь импорт
 
 // Объявляем тип для window.Telegram
 declare global {
@@ -13,7 +14,8 @@ declare global {
   }
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+// API_URL больше не нужен, т.к. используем api.ts
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
 export default function AdminCreateProduct() {
   const navigate = useNavigate()
@@ -52,10 +54,7 @@ export default function AdminCreateProduct() {
       const formData = new FormData()
       formData.append('image', imageFile)
       
-      const uploadRes = await fetch(`${API_URL}/api/upload`, {
-        method: 'POST',
-        body: formData,
-      })
+      const uploadRes = await api.upload(formData) // ✅ Заменили
       
       if (!uploadRes.ok) throw new Error('Ошибка загрузки фото')
       const uploadData = await uploadRes.json()
@@ -65,23 +64,16 @@ export default function AdminCreateProduct() {
       const initData = window.Telegram?.WebApp?.initData || ''
 
       // 3. Создаем товар
-      const productRes = await fetch(`${API_URL}/api/products`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Telegram-Init-Data': encodeURIComponent(initData), // <-- Авторизация
-        },
-        body: JSON.stringify({
-          name: form.name,
-          price: parseInt(form.price),
-          description: form.description,
-          image_url: imageUrl,
-          category: form.category,
-          is_new: form.isNew,
-          is_sale: form.isSale,
-          old_price: form.oldPrice ? parseInt(form.oldPrice) : null
-        }),
-      })
+      const productRes = await api.products.create({ // ✅ Заменили
+        name: form.name,
+        price: parseInt(form.price),
+        description: form.description,
+        image_url: imageUrl,
+        category: form.category,
+        is_new: form.isNew,
+        is_sale: form.isSale,
+        old_price: form.oldPrice ? parseInt(form.oldPrice) : null
+      }, initData) // передаём initData
 
       if (!productRes.ok) {
         const errText = await productRes.text()

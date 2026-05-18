@@ -43,18 +43,17 @@ func main() {
 	// Публичные роуты (доступны всем)
 	public := r.Group("/api")
 	{
-		public.GET("/products", productHandler.List)    // <-- Только здесь
-		public.GET("/products/:id", productHandler.Get) // <-- Только здесь
+		public.GET("/products", productHandler.List)
+		public.GET("/products/:id", productHandler.Get)
 
-		public.POST("/upload", handlers.UploadImage)
 	}
+  
+  r.POST("/upload", handlers.UploadImage)
 
 	// Защищённые роуты (требуют Telegram auth и прав админа для POST/PUT/DELETE)
 	protected := r.Group("/api")
 	protected.Use(middleware.TelegramAuth(cfg.TelegramBotToken))
 	{
-		// GET роуты уже есть в public, дублировать их тут НЕ НАДО
-
 		protected.POST("/products", productHandler.Create)       // Только админ
 		protected.PUT("/products/:id", productHandler.Update)    // Только админ
 		protected.DELETE("/products/:id", productHandler.Delete) // Только админ
