@@ -1,45 +1,36 @@
-// internal/config/config.go
 package config
 
 import (
 	"os"
-
-	"github.com/joho/godotenv"
+	"strconv"
 )
 
 type Config struct {
-	ServerPort       string `env:"SERVER_PORT"`
-	DatabaseURL      string `env:"DATABASE_URL"`
-	FrontendURL      string `env:"FRONTEND_URL"`
-	TelegramBotToken string `env:"TELEGRAM_BOT_TOKEN"`
-	AdminUserID      int64  `env:"ADMIN_USER_ID"`
+	ServerPort      string
+	DatabaseURL     string
+	TelegramBotToken string
+	AdminUserID     int64
 }
 
 func Load() *Config {
-	// 🟢 ЗАГРУЖАЕМ .env файл!
-	// Если файла нет — ошибка игнорируется, будут использованы дефолтные значения
-	_ = godotenv.Load()
+	port := os.Getenv("SERVER_PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	// Для отладки: раскомментируй, чтобы видеть загруженные значения в консоли
-	// log.Println("✅ Loaded DATABASE_URL:", os.Getenv("DATABASE_URL"))
+	adminIDStr := os.Getenv("ADMIN_USER_ID")
+	var adminID int64 = 0
+	if adminIDStr != "" {
+		id, err := strconv.ParseInt(adminIDStr, 10, 64)
+		if err == nil {
+			adminID = id
+		}
+	}
 
 	return &Config{
-		ServerPort:       getEnv("SERVER_PORT", "8080"),
-		DatabaseURL:      getEnv("DATABASE_URL", "postgres://dzhumali:12345@localhost:5432/myshop?sslmode=disable"),
-		FrontendURL:      getEnv("FRONTEND_URL", "http://localhost:5173"),
-		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
-		AdminUserID:      getEnvInt64("ADMIN_USER_ID", 0),
+		ServerPort:       port,
+		DatabaseURL:      os.Getenv("DATABASE_URL"),
+		TelegramBotToken: os.Getenv("TELEGRAM_BOT_TOKEN"),
+		AdminUserID:      adminID,
 	}
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-func getEnvInt64(key string, defaultValue int64) int64 {
-	// Упрощённая версия — можно расширить парсингом через strconv
-	return defaultValue
 }

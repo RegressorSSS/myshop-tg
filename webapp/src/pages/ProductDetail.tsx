@@ -1,95 +1,87 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { api } from '../lib/api' // ✅ Добавь импорт
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { api } from '../lib/api';
+
+declare global {
+  interface Window {
+    Telegram?: any;
+  }
+}
 
 export default function ProductDetail() {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const [product, setProduct] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await api.products.get(id!) // ✅ Заменили
-        if (!res.ok) throw new Error('Товар не найден')
-        const data = await res.json()
-        setProduct(data)
+        const res = await api.products.get(id!);
+        if (!res.ok) throw new Error('Товар не найден');
+        const data = await res.json();
+        setProduct(data);
       } catch (err) {
-        console.error(err)
-        alert('Ошибка загрузки товара')
-        navigate('/')
+        console.error(err);
+        navigate('/');
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-    fetchProduct()
-  }, [id, navigate])
+    };
+    fetchProduct();
 
-  const addToCart = () => {
-    if (!product) return
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-    const existingItem = cart.find((item: any) => item.id === product.id)
-    
-    if (existingItem) {
-      existingItem.quantity += 1
-    } else {
-      cart.push({ ...product, quantity: 1 })
-    }
-    
-    localStorage.setItem('cart', JSON.stringify(cart))
-    alert('Товар добавлен в корзину!')
-  }
+    const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    const adminId = 323205122; // Ваш ID
+    setIsAdmin(user && user.id === adminId);
+  }, [id, navigate]);
 
-  if (loading) return <div className="container mx-auto p-4">Загрузка...</div>
-  if (!product) return <div className="container mx-auto p-4">Товар не найден</div>
+  const handleDelete = async () => {
+    if (!confirm('Вы уверены, что хотите удалить товар?')) return;
+    try {
+      const initData = window.Telegram?.WebApp?.initData || '';
+      const res = await api.products.delete(id!, initData);
+      if (!res.ok) throw new Error('Ошибка удаления');
+      alert('Товар удалён');
+      navigate('/');
+    } catch (err) {
+      alert('Не удалось удалить товар');
+      console.error(err);
+    }
+  };
+
+  if (loading) return <div className="p-4">Загрузка...</div>;
+  if (!product) return null;
 
   return (
-    <div className="container mx-auto p-4 max-w-lg pb-24">
-      <div className="relative">
-        {product.image_url ? (
-          <img 
-            src={product.image_url} 
-            alt={product.name} 
-            className="w-full h-64 object-contain"
-          />
-        ) : (
-          <div className="bg-gray-200 w-full h-64 flex items-center justify-center">
-            <span className="text-gray-500">Нет фото</span>
-          </div>
+    <div className="container mx-auto p-4 pb-24">
+      <Card>
+        {product.image_url && (
+          <img src={product.image_url} alt={product.name} className="w-full h-64 object-cover rounded-t-lg" />
         )}
-        <div className="absolute top-2 left-2 flex gap-2">
-          {product.is_new && <Badge className="bg-green-500">Новинка</Badge>}
-          {product.is_sale && <Badge className="bg-red-500">Распродажа</Badge>}
-        </div>
-      </div>
+        <CardContent className="space-y-4 pt-4">
+          <h1 className="text-2xl font-bold">{product.name}</h1>
+          <div className="text-xl font-bold text-green-600">{product.price} ₽</div>
+          {product.old_price && (
+            <div className="text-sm line-through text-gray-500">{product.old_price} ₽</div>
+          )}
+          <div>Категория: {product.category}</div>
+          <div className="text-gray-700">{product.description}</div>
 
-      <div className="mt-4">
-        <h1 className="text-xl font-bold">{product.name}</h1>
-        <p className="text-gray-500">{product.category}</p>
-        
-        {product.is_sale && product.old_price ? (
-          <div className="mt-2">
-            <span className="line-through text-gray-500">{product.old_price} ₽</span>
-            <span className="ml-2 text-xl font-bold">{product.price} ₽</span>
-          </div>
-        ) : (
-          <p className="text-xl font-bold">{product.price} ₽</p>
-        )}
-
-        <div className="mt-4">
-          <h3 className="font-semibold">Описание:</h3>
-          <p>{product.description || 'Описание отсутствует'}</p>
-        </div>
-
-        <div className="mt-6">
-          <Button className="w-full" onClick={addToCart}>
-            Добавить в корзину
-          </Button>
-        </div>
-      </div>
+          {isAdmin && (
+            <div className="flex gap-2 pt-4">
+              <Button onClick={() => navigate(`/admin/edit-product/${id}`)} variant="outline">
+                ✏️ Редактировать
+              </Button>
+              <Button onClick={handleDelete} variant="destructive">
+                🗑️ Удалить
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
-  )
+  );
 }
