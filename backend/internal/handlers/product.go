@@ -3,25 +3,27 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
-	"myshop-tg/backend/internal/middleware"
 	"myshop-tg/backend/internal/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
 type ProductHandler struct {
 	db      *sqlx.DB
-	adminID int64 // Храним ID админа из конфига
+	adminID int64
 }
 
 func NewProductHandler(db *sqlx.DB, adminID int64) *ProductHandler {
 	return &ProductHandler{db: db, adminID: adminID}
 }
 
-// GET /api/products — список товаров с фильтрацией
+// GET /products — список товаров
 func (h *ProductHandler) List(c *gin.Context) {
 	category := c.Query("category")
 	search := c.Query("search")
@@ -88,7 +90,7 @@ func (h *ProductHandler) List(c *gin.Context) {
 	})
 }
 
-// GET /api/products/:id — товар по ID
+// GET /products/:id
 func (h *ProductHandler) Get(c *gin.Context) {
 	id := c.Param("id")
 	var product models.Product
@@ -100,18 +102,8 @@ func (h *ProductHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, product)
 }
 
-// POST /api/products — создать товар (только админ)
+// POST /products — создать товар (без проверки)
 func (h *ProductHandler) Create(c *gin.Context) {
-	user, ok := middleware.GetUserFromContext(c)
-	if !ok {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		return
-	}
-	if user.ID != h.adminID {
-		c.JSON(403, gin.H{"error": "Admin access required"})
-		return
-	}
-
 	var req models.CreateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -133,19 +125,8 @@ func (h *ProductHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"id": id, "message": "Product created"})
 }
 
-// PUT /api/products/:id — обновить товар (только админ)
-// PUT /api/products/:id — обновить товар (только админ)
+// PUT /products/:id — обновить товар (без проверки)
 func (h *ProductHandler) Update(c *gin.Context) {
-	user, ok := middleware.GetUserFromContext(c)
-	if !ok {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		return
-	}
-	if user.ID != h.adminID {
-		c.JSON(403, gin.H{"error": "Admin access required"})
-		return
-	}
-
 	id := c.Param("id")
 	var req models.UpdateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -203,12 +184,9 @@ func (h *ProductHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Добавляем updated_at
 	updates = append(updates, "updated_at=NOW()")
-
-	// Добавляем ID для WHERE
 	args = append(args, id)
-	whereIndex := len(args) // Индекс для WHERE id=$X
+	whereIndex := len(args)
 
 	query := fmt.Sprintf("UPDATE products SET %s WHERE id=$%d", strings.Join(updates, ", "), whereIndex)
 
@@ -221,18 +199,35 @@ func (h *ProductHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Product updated"})
 }
 
-// DELETE /api/products/:id — удалить товар (только админ)
-func (h *ProductHandler) Delete(c *gin.Context) {
-	user, ok := middleware.GetUserFromContext(c)
-	if !ok {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		return
-	}
-	if user.ID != h.adminID {
-		c.JSON(403, gin.H{"error": "Admin access required"})
+// POST /upload — загрузка изображения (без проверки)
+func (h *ProductHandler) UploadImage(c *gin.Context) {
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
 		return
 	}
 
+	ext := filepath.Ext(file.Filename)
+	newFileName := uuid.New().String() + ext
+	uploadDir := "/var/www/myshop-tg/uploads"
+
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create uploads directory"})
+		return
+	}
+
+	savePath := filepath.Join(uploadDir, newFileName)
+	if err := c.SaveUploadedFile(file, savePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image"})
+		return
+	}
+
+	imageURL := "/uploads/" + newFileName
+	c.JSON(http.StatusOK, gin.H{"image_url": imageURL})
+}
+
+// DELETE /products/:id — удалить товар (без проверки)
+func (h *ProductHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	_, err := h.db.Exec("DELETE FROM products WHERE id = $1", id)
 	if err != nil {

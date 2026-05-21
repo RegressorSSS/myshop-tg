@@ -11,24 +11,18 @@ import (
 )
 
 func main() {
-	// Загрузка .env
 	_ = godotenv.Load()
 	cfg := config.Load()
 
-	// Подключение к БД
 	db, err := database.New(cfg.DatabaseURL)
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
 
-	// Инициализация хендлеров
-	productHandler := handlers.NewProductHandler(db, cfg.AdminUserID)
-
-	// Gin router
 	r := gin.Default()
+	r.SetTrustedProxies([]string{"127.0.0.1"})
 
-	// CORS
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -40,29 +34,22 @@ func main() {
 		c.Next()
 	})
 
-	// Публичные роуты (доступны всем)
-	public := r.Group("/api")
-	{
-		public.GET("/products", productHandler.List)
-		public.GET("/products/:id", productHandler.Get)
+	productHandler := handlers.NewProductHandler(db, cfg.AdminUserID)
 
-	}
-  
-  r.POST("/upload", handlers.UploadImage)
+	r.GET("/products", productHandler.List)
+	r.GET("/products/:id", productHandler.Get)
 
-	// Защищённые роуты (требуют Telegram auth и прав админа для POST/PUT/DELETE)
-	protected := r.Group("/api")
+	protected := r.Group("")
 	protected.Use(middleware.TelegramAuth(cfg.TelegramBotToken))
 	{
-		protected.POST("/products", productHandler.Create)       // Только админ
-		protected.PUT("/products/:id", productHandler.Update)    // Только админ
-		protected.DELETE("/products/:id", productHandler.Delete) // Только админ
+		protected.POST("/products", productHandler.Create)
+		protected.PUT("/products/:id", productHandler.Update)
+		protected.DELETE("/products/:id", productHandler.Delete)
+		protected.POST("/upload", productHandler.UploadImage)
 	}
 
-	// Раздача загруженных изображений
-	r.Static("/uploads", "./uploads")
+	r.Static("/uploads", "/var/www/myshop-tg/uploads")
 
-	// Запуск сервера
 	if err := r.Run(":" + cfg.ServerPort); err != nil {
 		panic(err)
 	}

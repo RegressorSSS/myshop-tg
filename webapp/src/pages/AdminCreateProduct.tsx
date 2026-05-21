@@ -1,27 +1,23 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { api } from '../lib/api' // ✅ Добавь импорт
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { api } from '../lib/api';
 
-// Объявляем тип для window.Telegram
 declare global {
   interface Window {
-    Telegram?: any
+    Telegram?: any;
   }
 }
 
-// API_URL больше не нужен, т.к. используем api.ts
-// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
-
 export default function AdminCreateProduct() {
-  const navigate = useNavigate()
-  const [loading, setLoading] = useState(false)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   
   const [form, setForm] = useState({
     name: '',
@@ -31,40 +27,40 @@ export default function AdminCreateProduct() {
     isNew: false,
     isSale: false,
     oldPrice: ''
-  })
+  });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setImageFile(file)
-      setPreview(URL.createObjectURL(file))
+      const file = e.target.files[0];
+      setImageFile(file);
+      setPreview(URL.createObjectURL(file));
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!imageFile) {
-      alert('Выберите изображение!')
-      return
+      alert('Выберите изображение!');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
+      const initData = window.Telegram?.WebApp?.initData || '';
+      
       // 1. Загружаем фото
-      const formData = new FormData()
-      formData.append('image', imageFile)
-      
-      const uploadRes = await api.upload(formData) // ✅ Заменили
-      
-      if (!uploadRes.ok) throw new Error('Ошибка загрузки фото')
-      const uploadData = await uploadRes.json()
-      const imageUrl = uploadData.url 
+      const formData = new FormData();
+      formData.append('file', imageFile);
+      const uploadRes = await api.upload(formData, initData);
+      if (!uploadRes.ok) {
+        const err = await uploadRes.text();
+        throw new Error(`Ошибка загрузки фото: ${err}`);
+      }
+      const uploadData = await uploadRes.json();
+      const imageUrl = uploadData.image_url;
 
-      // 2. Получаем initData для авторизации
-      const initData = window.Telegram?.WebApp?.initData || ''
-
-      // 3. Создаем товар
-      const productRes = await api.products.create({ // ✅ Заменили
+      // 2. Создаём товар
+      const productRes = await api.products.create({
         name: form.name,
         price: parseInt(form.price),
         description: form.description,
@@ -73,22 +69,22 @@ export default function AdminCreateProduct() {
         is_new: form.isNew,
         is_sale: form.isSale,
         old_price: form.oldPrice ? parseInt(form.oldPrice) : null
-      }, initData) // передаём initData
+      }, initData);
 
       if (!productRes.ok) {
-        const errText = await productRes.text()
-        throw new Error(errText || 'Ошибка создания товара')
+        const errText = await productRes.text();
+        throw new Error(errText || 'Ошибка создания товара');
       }
       
-      alert('Товар успешно создан!')
-      navigate('/')
+      alert('Товар успешно создан!');
+      navigate('/');
     } catch (err: any) {
-      console.error(err)
-      alert('Ошибка: ' + err.message)
+      console.error(err);
+      alert('Ошибка: ' + err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="container mx-auto p-4 max-w-lg pb-24">
@@ -98,8 +94,6 @@ export default function AdminCreateProduct() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            
-            {/* Загрузка фото */}
             <div className="space-y-2">
               <Label>Фото товара</Label>
               <Input type="file" accept="image/*" onChange={handleImageChange} />
@@ -162,5 +156,5 @@ export default function AdminCreateProduct() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

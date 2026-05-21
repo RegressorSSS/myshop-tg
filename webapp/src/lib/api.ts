@@ -1,10 +1,11 @@
-// src/lib/api.ts
-const API_BASE = import.meta.env.VITE_API_URL; // https://gasuboots.ru/api
+const API_BASE = import.meta.env.VITE_API_URL;
 
 export const api = {
   products: {
     list: (params?: URLSearchParams) => {
-      const url = params ? `${API_BASE}/products?${params}` : `${API_BASE}/products`;
+      const url = params 
+        ? `${API_BASE}/products?${params}` 
+        : `${API_BASE}/products`;
       return fetch(url);
     },
     get: (id: string) => fetch(`${API_BASE}/products/${id}`),
@@ -31,10 +32,17 @@ export const api = {
       }
     })
   },
-  upload: (formData: FormData) => fetch(`${API_BASE}/upload`, {
-    method: 'POST',
-    body: formData
-  }),
+  upload: (formData: FormData, initData?: string) => {
+    const headers: HeadersInit = {};
+    if (initData) {
+      headers['X-Telegram-Init-Data'] = encodeURIComponent(initData);
+    }
+    return fetch(`${API_BASE}/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+  },
   orders: {
     create: (data: any, initData?: string) => fetch(`${API_BASE}/orders`, {
       method: 'POST',

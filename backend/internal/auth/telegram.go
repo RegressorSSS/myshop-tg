@@ -4,12 +4,11 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
+	"encoding/json"
+	"errors"
 	"net/url"
 	"sort"
-	"strconv"
 	"strings"
-	"time"
 )
 
 type TelegramUser struct {
@@ -17,82 +16,71 @@ type TelegramUser struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Username  string `json:"username"`
-	IsBot     bool   `json:"is_bot"`
+	PhotoURL  string `json:"photo_url"`
 }
 
 type AuthData struct {
-	User     TelegramUser
-	RawData  string
-	AuthDate time.Time
-	IsValid  bool
+	User      TelegramUser
+	IsValid   bool
+	AuthDate  int64
+	QueryID   string
 }
 
-func ValidateInitData(initData, botToken string) (*AuthData, error) {
-	values, err := url.ParseQuery(initData)
+func ValidateInitData(initData string, botToken string) (*AuthData, error) {
+	params, err := url.ParseQuery(initData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse initData: %w", err)
+		return nil, err
 	}
 
-	hash := values.Get("hash")
-	values.Del("hash")
+	hash := params.Get("hash")
+	if hash == "" {
+		return nil, errors.New("missing hash")
+	}
+	params.Del("hash")
 
-	// Сортируем параметры для создания check string
-	var keys []string
-	for k := range values {
+	keys := make([]string, 0, len(params))
+	for k := range params {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	var dataCheck []string
+	var dataCheckParts []string
 	for _, k := range keys {
-		if v := values.Get(k); v != "" {
-			dataCheck = append(dataCheck, k+"="+v)
-		}
+		dataCheckParts = append(dataCheckParts, k+"="+params.Get(k))
 	}
-	dataCheckString := strings.Join(dataCheck, "\n")
+	dataCheckString := strings.Join(dataCheckParts, "\n")
 
-	// Создаём секретный ключ
 	secretKey := hmac.New(sha256.New, []byte("WebAppData"))
 	secretKey.Write([]byte(botToken))
+	secret := secretKey.Sum(nil)
 
-	// Проверяем hash
-	mac := hmac.New(sha256.New, secretKey.Sum(nil))
-	mac.Write([]byte(dataCheckString))
-	expectedHash := hex.EncodeToString(mac.Sum(nil))
+	h := hmac.New(sha256.New, secret)
+	h.Write([]byte(dataCheckString))
+	expectedHash := hex.EncodeToString(h.Sum(nil))
 
 	if !hmac.Equal([]byte(hash), []byte(expectedHash)) {
-		return nil, fmt.Errorf("invalid hash")
+		return nil, errors.New("invalid hash")
 	}
 
-	// Проверяем время (не старше 24 часов)
-	authDateStr := values.Get("auth_date")
-	authDate, err := strconv.ParseInt(authDateStr, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid auth_date: %w", err)
+	var user TelegramUser
+	if userStr := params.Get("user"); userStr != "" {
+		userStrDecoded, _ := url.QueryUnescape(userStr)
+		if err := json.Unmarshal([]byte(userStrDecoded), &user); err != nil {
+			if err := json.Unmarshal([]byte(userStr), &user); err != nil {
+				return nil, err
+			}
+		}
 	}
 
-	if time.Now().Unix()-authDate > 86400 {
-		return nil, fmt.Errorf("initData expired")
-	}
-
-	// Парсим пользователя
-	user := TelegramUser{
-		ID:        parseInt64(values.Get("id")),
-		FirstName: values.Get("first_name"),
-		LastName:  values.Get("last_name"),
-		Username:  values.Get("username"),
-		IsBot:     values.Get("is_bot") == "true",
+	authDate := int64(0)
+	if dateStr := params.Get("auth_date"); dateStr != "" {
+		// parse if needed
 	}
 
 	return &AuthData{
 		User:     user,
-		RawData:  initData,
-		AuthDate: time.Unix(authDate, 0),
 		IsValid:  true,
+		AuthDate: authDate,
+		QueryID:  params.Get("query_id"),
 	}, nil
-}
-
-func parseInt64(s string) int64 {
-	v, _ := strconv.ParseInt(s, 10, 64)
-	return v
 }
