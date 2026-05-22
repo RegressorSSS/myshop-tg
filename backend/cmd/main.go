@@ -21,6 +21,10 @@ func main() {
 	defer db.Close()
 
 	r := gin.Default()
+	
+	// Устанавливаем лимит на размер загружаемых файлов (20 MB)
+	r.MaxMultipartMemory = 20 << 20 // 20 MB
+	
 	r.SetTrustedProxies([]string{"127.0.0.1"})
 
 	r.Use(func(c *gin.Context) {

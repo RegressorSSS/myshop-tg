@@ -20,13 +20,10 @@ interface CartItem {
 }
 
 export default function Cart() {
-  console.log('[Cart] Компонент отрендерен')
-
   const [items, setItems] = useState<CartItem[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  console.log('[Cart] showForm =', showForm)
 
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
@@ -34,19 +31,15 @@ export default function Cart() {
   const [comment, setComment] = useState('')
 
   const user = window.Telegram?.WebApp?.initDataUnsafe?.user
-  console.log('[Cart] user из Telegram:', user)
 
   useEffect(() => {
-    console.log('[Cart] useEffect для fullName, user:', user)
     if (user && !fullName) {
       setFullName(`${user.first_name || ''} ${user.last_name || ''}`.trim())
     }
   }, [user])
 
   const loadCart = () => {
-    console.log('[Cart] loadCart вызвана')
-    const cart: CartItem[] = JSON.parse(localStorage.getItem('cart') || '[]')
-    console.log('[Cart] загруженная корзина:', cart)
+    const cart: CartItem[] = JSON.parse(localStorage.getItem('myshop_cart') || '[]')
     setItems(cart)
     const sum = cart.reduce((acc: number, item: CartItem) => acc + item.price * item.quantity, 0)
     setTotal(sum)
@@ -54,25 +47,26 @@ export default function Cart() {
   }
 
   useEffect(() => {
-    console.log('[Cart] useEffect для загрузки корзины')
     loadCart()
+    // Слушаем изменения корзины из других вкладок/компонентов
+    const handleCartUpdate = () => loadCart()
+    window.addEventListener('storage', handleCartUpdate)
+    window.addEventListener('cart-updated', handleCartUpdate)
+    return () => {
+      window.removeEventListener('storage', handleCartUpdate)
+      window.removeEventListener('cart-updated', handleCartUpdate)
+    }
   }, [])
 
-  useEffect(() => {
-    console.log('[Cart] useEffect отслеживает showForm, новое значение:', showForm)
-  }, [showForm])
-
   const updateCart = (newCart: CartItem[]) => {
-    console.log('[Cart] updateCart, newCart:', newCart)
     setItems(newCart)
-    localStorage.setItem('cart', JSON.stringify(newCart))
+    localStorage.setItem('myshop_cart', JSON.stringify(newCart))
     const sum = newCart.reduce((acc: number, item: CartItem) => acc + item.price * item.quantity, 0)
     setTotal(sum)
-    window.dispatchEvent(new Event('storage'))
+    window.dispatchEvent(new CustomEvent('cart-updated'))
   }
 
   const increaseQuantity = (id: number) => {
-    console.log('[Cart] increaseQuantity, id:', id)
     const newCart = items.map(item =>
       item.id === id ? { ...item, quantity: item.quantity + 1 } : item
     )
@@ -80,7 +74,6 @@ export default function Cart() {
   }
 
   const decreaseQuantity = (id: number) => {
-    console.log('[Cart] decreaseQuantity, id:', id)
     const item = items.find(i => i.id === id)
     if (item && item.quantity === 1) {
       removeFromCart(id)
@@ -93,15 +86,12 @@ export default function Cart() {
   }
 
   const removeFromCart = (id: number) => {
-    console.log('[Cart] removeFromCart, id:', id)
     const newCart = items.filter(item => item.id !== id)
     updateCart(newCart)
   }
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('[Cart] handleSubmitOrder вызвана')
-    console.log('[Cart] phone:', phone, 'address:', address)
     if (!phone.trim()) {
       alert('Введите номер телефона')
       return
@@ -115,7 +105,7 @@ export default function Cart() {
     const orderData = {
       user_id: user?.id || 0,
       user_name: fullName,
-      username: user?.username || '',   // <-- ДОБАВЛЕНО (одна строка)
+      username: user?.username || '',
       phone: phone.trim(),
       address: address.trim(),
       comment: comment.trim(),
@@ -128,23 +118,20 @@ export default function Cart() {
       total
     }
 
-    console.log('[Cart] orderData для отправки:', orderData)
-
     try {
       const res = await api.orders.create(orderData, initData)
-      console.log('[Cart] ответ сервера, статус:', res.status)
       if (!res.ok) {
         const err = await res.json()
         throw new Error(err.error || 'Ошибка оформления заказа')
       }
       alert('Заказ успешно оформлен! Ожидайте звонка оператора.')
-      localStorage.removeItem('cart')
+      localStorage.removeItem('myshop_cart')
       setItems([])
       setTotal(0)
-      window.dispatchEvent(new Event('storage'))
+      window.dispatchEvent(new CustomEvent('cart-updated'))
       setShowForm(false)
     } catch (err: any) {
-      console.error('[Cart] ошибка при оформлении:', err)
+      console.error(err)
       alert('Ошибка: ' + err.message)
     }
   }
@@ -161,7 +148,6 @@ export default function Cart() {
   }
 
   if (showForm) {
-    console.log('[Cart] Рендерим форму оформления заказа')
     return (
       <div className="container mx-auto p-4 max-w-lg pb-24">
         <h2 className="text-xl font-bold mb-4">📋 Оформление заказа</h2>
@@ -192,7 +178,6 @@ export default function Cart() {
     )
   }
 
-  console.log('[Cart] Рендерим корзину с товарами')
   return (
     <div className="container mx-auto p-4 max-w-lg pb-24">
       <h2 className="text-xl font-bold mb-4">🛒 Корзина</h2>
@@ -226,15 +211,7 @@ export default function Cart() {
 
       <div className="mt-6 p-4 border rounded-lg">
         <div className="text-lg font-bold">Итого: {total} ₽</div>
-        <Button 
-          className="w-full mt-4" 
-          onClick={() => { 
-            console.log('[Cart] Кнопка "Оформить заказ" нажата, переключаем showForm на true'); 
-            setShowForm(true); 
-          }}
-        >
-          Оформить заказ
-        </Button>
+        <Button className="w-full mt-4" onClick={() => setShowForm(true)}>Оформить заказ</Button>
       </div>
     </div>
   )

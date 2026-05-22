@@ -22,7 +22,7 @@ type OrderItem struct {
 type OrderRequest struct {
 	UserID   int64       `json:"user_id"`
 	UserName string      `json:"user_name"`
-	Username string      `json:"username"` // добавлено
+	Username string      `json:"username"`
 	Phone    string      `json:"phone"`
 	Address  string      `json:"address"`
 	Comment  string      `json:"comment"`
@@ -99,36 +99,36 @@ func (h *OrderHandler) Create(c *gin.Context) {
 func (h *OrderHandler) sendNotificationToAdmins(order OrderRequest, orderID int) {
 	var itemsText string
 	for _, item := range order.Items {
-		itemsText += fmt.Sprintf("• %s (%d шт.) — %d ₽\n", item.Name, item.Quantity, item.Price*item.Quantity)
+		itemsText += fmt.Sprintf("- %s (%d шт.) - %d ₽\n", item.Name, item.Quantity, item.Price*item.Quantity)
 	}
 
-	// Формируем ссылку на профиль
 	profileLink := fmt.Sprintf("tg://user?id=%d", order.UserID)
 	if order.Username != "" {
 		profileLink = "https://t.me/" + order.Username
 	}
 
+	// Простой текст без Markdown
 	text := fmt.Sprintf(`
-🛒 **Новый заказ #%d**
+🛒 НОВЫЙ ЗАКАЗ #%d
 
-👤 **Клиент:** %s (ID: %d)
-🔗 **Профиль:** %s
-📞 **Телефон:** %s
-📍 **Адрес:** %s
-📝 **Комментарий:** %s
+Клиент: %s (ID: %d)
+Профиль: %s
+Телефон: %s
+Адрес: %s
+Комментарий: %s
 
-📦 **Состав заказа:**
+Состав заказа:
 %s
 
-💰 **Итого:** %d ₽
+ИТОГО: %d ₽
 `, orderID, order.UserName, order.UserID, profileLink, order.Phone, order.Address, order.Comment, itemsText, order.Total)
 
 	for _, adminID := range h.adminIDs {
 		apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", h.botToken)
 		payload := map[string]interface{}{
-			"chat_id":    adminID,
-			"text":       text,
-			"parse_mode": "Markdown",
+			"chat_id": adminID,
+			"text":    text,
+			// parse_mode не указываем (простой текст)
 		}
 		jsonPayload, _ := json.Marshal(payload)
 		resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonPayload))

@@ -25,6 +25,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('myshop_cart', JSON.stringify(items))
   }, [items])
 
+  const syncCart = () => {
+    const saved = localStorage.getItem('myshop_cart')
+    if (saved) {
+      try {
+        const newItems = JSON.parse(saved)
+        setItems(newItems)
+      } catch (e) {}
+    } else {
+      setItems([])
+    }
+  }
+
+  useEffect(() => {
+    window.addEventListener('storage', syncCart)
+    window.addEventListener('cart-updated', syncCart)
+    return () => {
+      window.removeEventListener('storage', syncCart)
+      window.removeEventListener('cart-updated', syncCart)
+    }
+  }, [])
+
   const addToCart = (product: Product) => {
     setItems(prev => {
       const existing = prev.find(i => i.id === product.id)

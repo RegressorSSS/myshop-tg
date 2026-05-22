@@ -10,10 +10,10 @@ export default function Home() {
   const [category, setCategory] = useState('')
   const [, forceUpdate] = useState({})
 
-  const getCart = () => JSON.parse(localStorage.getItem('cart') || '[]')
+  const getCart = () => JSON.parse(localStorage.getItem('myshop_cart') || '[]')
   const saveCart = (cart: any[]) => {
-    localStorage.setItem('cart', JSON.stringify(cart))
-    window.dispatchEvent(new Event('storage'))
+    localStorage.setItem('myshop_cart', JSON.stringify(cart))
+    window.dispatchEvent(new CustomEvent('cart-updated'))
     forceUpdate({})
   }
 
