@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { CartProvider } from './contexts/CartContext';
 import BottomNav from './components/BottomNav';
@@ -11,7 +11,6 @@ import ProfileOrders from './pages/ProfileOrders';
 import UploadTest from './pages/UploadTest';
 import AdminCreateProduct from './pages/AdminCreateProduct';
 import AdminEditProduct from './pages/AdminEditProduct';
-import ErudaDebug from './components/ErudaDebug';
 
 function Layout() {
   const location = useLocation();
@@ -38,25 +37,52 @@ function Layout() {
 }
 
 function App() {
-  useEffect(() => {
-    if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.ready();
-      console.log('Telegram WebApp initialized');
-      window.Telegram.WebApp.expand();
-    } else {
-      console.warn('Telegram WebApp not found – запущено вне Telegram');
-    }
+  const [isTelegramWebApp, setIsTelegramWebApp] = useState<boolean | null>(null);
 
-    const timer = setTimeout(() => {
-      window.dispatchEvent(new Event('resize'));
-    }, 300);
-    return () => clearTimeout(timer);
+  useEffect(() => {
+    const checkTelegram = () => {
+      const telegram = window.Telegram?.WebApp;
+      if (telegram && telegram.initData) {
+        setIsTelegramWebApp(true);
+        telegram.ready();
+        telegram.expand();
+      } else {
+        setIsTelegramWebApp(false);
+      }
+    };
+    checkTelegram();
   }, []);
+
+  if (isTelegramWebApp === null) {
+    return <div className="flex items-center justify-center h-screen">Загрузка...</div>;
+  }
+
+  if (!isTelegramWebApp) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen text-center p-4">
+        <h1 className="text-2xl font-bold mb-4">🚫 Доступ только через Telegram</h1>
+        <p className="text-gray-600 mb-4">
+          Это приложение работает только внутри Telegram.<br />
+          Пожалуйста, откройте его через нашего бота:
+        </p>
+        <a 
+          href="https://t.me/gasuboots_bot" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+        >
+          <span>📱</span> Открыть бота в Telegram
+        </a>
+        <p className="text-xs text-gray-400 mt-6">
+          Нажмите кнопку «Open» / «Запустить» внутри бота.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
       <CartProvider>
-        <ErudaDebug />
         <Layout />
       </CartProvider>
     </BrowserRouter>
