@@ -3,13 +3,14 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
-	ServerPort      string
-	DatabaseURL     string
+	ServerPort       string
+	DatabaseURL      string
 	TelegramBotToken string
-	AdminUserID     int64
+	AdminUserIDs     []int64
 }
 
 func Load() *Config {
@@ -18,12 +19,15 @@ func Load() *Config {
 		port = "8080"
 	}
 
-	adminIDStr := os.Getenv("ADMIN_USER_ID")
-	var adminID int64 = 0
-	if adminIDStr != "" {
-		id, err := strconv.ParseInt(adminIDStr, 10, 64)
-		if err == nil {
-			adminID = id
+	adminIDsStr := os.Getenv("ADMIN_USER_ID")
+	var adminIDs []int64
+	if adminIDsStr != "" {
+		parts := strings.Split(adminIDsStr, ",")
+		for _, part := range parts {
+			id, err := strconv.ParseInt(strings.TrimSpace(part), 10, 64)
+			if err == nil {
+				adminIDs = append(adminIDs, id)
+			}
 		}
 	}
 
@@ -31,6 +35,6 @@ func Load() *Config {
 		ServerPort:       port,
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
 		TelegramBotToken: os.Getenv("TELEGRAM_BOT_TOKEN"),
-		AdminUserID:      adminID,
+		AdminUserIDs:     adminIDs,
 	}
 }

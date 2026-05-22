@@ -9,7 +9,7 @@ declare global {
   }
 }
 
-const ADMIN_ID = 323205122; // Жёстко задаём ID админа
+const ADMIN_IDS = [323205122, 709145946]; // ваши ID админов
 
 export default function Profile() {
   const [user, setUser] = useState<any>(null);
@@ -22,7 +22,7 @@ export default function Profile() {
     }
   }, []);
 
-  const isAdmin = user && user.id === ADMIN_ID;
+  const isAdmin = user && ADMIN_IDS.includes(user.id);
 
   return (
     <div className="container mx-auto p-4 pb-24">
@@ -44,6 +44,7 @@ export default function Profile() {
                 {user.first_name} {user.last_name}
               </h2>
               <p className="text-gray-500">@{user.username}</p>
+              <p className="text-gray-400 text-sm">ID: {user.id}</p>
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
@@ -52,12 +53,7 @@ export default function Profile() {
             </div>
           )}
 
-          <div className="border-t pt-4 mt-4">
-            <div className="flex justify-between items-center mb-2">
-              <span>Ваши бонусы</span>
-              <span className="font-bold">0 ₽</span>
-            </div>
-          </div>
+          {/* Блок с бонусами удалён */}
 
           <div className="space-y-2">
             {isAdmin && (
@@ -72,9 +68,7 @@ export default function Profile() {
                 📋 История заказов
               </Button>
             </Link>
-            <Button variant="outline" className="w-full justify-start">
-              🎟️ Промокоды
-            </Button>
+            {/* Кнопка "Промокоды" удалена */}
           </div>
         </CardContent>
       </Card>

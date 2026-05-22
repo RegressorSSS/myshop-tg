@@ -1,49 +1,61 @@
-import { useNavigate, useLocation } from 'react-router-dom'
-import { cn } from '@/lib/utils'
-import { ShoppingBag, ShoppingCart, User } from 'lucide-react'
-import { useCart } from '@/hooks/useCart'
+import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
-const tabs = [
-  { path: '/', label: 'Каталог', icon: ShoppingBag },
-  { path: '/cart', label: 'Корзина', icon: ShoppingCart },
-  { path: '/profile', label: 'Профиль', icon: User },
-]
+const BottomNav = () => {
+  const location = useLocation();
+  const [count, setCount] = useState(0);
 
-export default function BottomNav() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { items } = useCart()
-  const cartCount = items.reduce((sum, i) => sum + i.quantity, 0)
+  // Функция обновления счётчика из localStorage
+  const updateCount = () => {
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const total = cart.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+    setCount(total);
+  };
+
+  useEffect(() => {
+    updateCount();
+    // Слушаем изменения localStorage (когда корзина меняется в других вкладках)
+    window.addEventListener('storage', updateCount);
+    // Также можно перехватывать свои события, если нужно
+    const interval = setInterval(updateCount, 500); // временный костыль, но надёжно
+    return () => {
+      window.removeEventListener('storage', updateCount);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Также принудительно обновляем при фокусе окна
+  useEffect(() => {
+    const handleFocus = () => updateCount();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 pb-4 pt-2 z-50 safe-area-pb">
-      <div className="flex justify-around items-center max-w-lg mx-auto">
-        {tabs.map((tab) => {
-          const isActive = location.pathname === tab.path
-          const Icon = tab.icon
-          
-          return (
-            <button
-              key={tab.path}
-              onClick={() => navigate(tab.path)}
-              className={cn(
-                'flex flex-col items-center gap-1 p-2 rounded-xl transition-all relative',
-                isActive ? 'text-black scale-105' : 'text-gray-400 hover:text-gray-600'
-              )}
-            >
-              <div className="relative">
-                <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-                {tab.path === '/cart' && cartCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center shadow-sm">
-                    {cartCount > 9 ? '9+' : cartCount}
-                  </span>
-                )}
-              </div>
-              <span className="text-xs font-medium">{tab.label}</span>
-            </button>
-          )
-        })}
-      </div>
-    </nav>
-  )
-}
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center py-2 z-50">
+      <Link to="/" className={`flex flex-col items-center p-2 ${isActive('/') ? 'text-green-600' : 'text-gray-500'}`}>
+        <span className="text-xl">🏠</span>
+        <span className="text-xs">Каталог</span>
+      </Link>
+      <Link to="/cart" className={`flex flex-col items-center p-2 relative ${isActive('/cart') ? 'text-green-600' : 'text-gray-500'}`}>
+        <div className="relative">
+          <span className="text-xl">🛒</span>
+          {count > 0 && (
+            <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              {count > 99 ? '99+' : count}
+            </span>
+          )}
+        </div>
+        <span className="text-xs">Корзина</span>
+      </Link>
+      <Link to="/profile" className={`flex flex-col items-center p-2 ${isActive('/profile') ? 'text-green-600' : 'text-gray-500'}`}>
+        <span className="text-xl">👤</span>
+        <span className="text-xs">Профиль</span>
+      </Link>
+    </div>
+  );
+};
+
+export default BottomNav;

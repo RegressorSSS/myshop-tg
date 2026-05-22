@@ -16,12 +16,21 @@ import (
 )
 
 type ProductHandler struct {
-	db      *sqlx.DB
-	adminID int64
+	db           *sqlx.DB
+	adminUserIDs []int64
 }
 
-func NewProductHandler(db *sqlx.DB, adminID int64) *ProductHandler {
-	return &ProductHandler{db: db, adminID: adminID}
+func NewProductHandler(db *sqlx.DB, adminUserIDs []int64) *ProductHandler {
+	return &ProductHandler{db: db, adminUserIDs: adminUserIDs}
+}
+
+func (h *ProductHandler) isAdmin(userID int64) bool {
+	for _, id := range h.adminUserIDs {
+		if id == userID {
+			return true
+		}
+	}
+	return false
 }
 
 // GET /products — список товаров (публичный)
@@ -105,24 +114,14 @@ func (h *ProductHandler) Get(c *gin.Context) {
 
 // POST /products — создать товар (только админ)
 func (h *ProductHandler) Create(c *gin.Context) {
-	fmt.Println("[Create] Getting user from context...")
 	user, ok := middleware.GetUserFromContext(c)
-	if !ok {
-		fmt.Println("[Create] User not found in context")
+	if !ok || !h.isAdmin(user.ID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 		return
 	}
-	fmt.Printf("[Create] User ID = %d, Admin ID = %d\n", user.ID, h.adminID)
-	if user.ID != h.adminID {
-		fmt.Println("[Create] Access denied: user is not admin")
-		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
-		return
-	}
-	fmt.Println("[Create] Access granted, creating product...")
 
 	var req models.CreateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		fmt.Println("[Create] JSON binding error:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -135,31 +134,20 @@ func (h *ProductHandler) Create(c *gin.Context) {
 	).Scan(&id)
 
 	if err != nil {
-		fmt.Println("[Create] DB insert error:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	fmt.Println("[Create] Product created with ID:", id)
 	c.JSON(http.StatusCreated, gin.H{"id": id, "message": "Product created"})
 }
 
 // PUT /products/:id — обновить товар (только админ)
 func (h *ProductHandler) Update(c *gin.Context) {
-	fmt.Println("[Update] Getting user from context...")
 	user, ok := middleware.GetUserFromContext(c)
-	if !ok {
-		fmt.Println("[Update] User not found in context")
+	if !ok || !h.isAdmin(user.ID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 		return
 	}
-	fmt.Printf("[Update] User ID = %d, Admin ID = %d\n", user.ID, h.adminID)
-	if user.ID != h.adminID {
-		fmt.Println("[Update] Access denied: user is not admin")
-		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
-		return
-	}
-	fmt.Println("[Update] Access granted, updating product...")
 
 	id := c.Param("id")
 	var req models.UpdateProductRequest
@@ -226,12 +214,10 @@ func (h *ProductHandler) Update(c *gin.Context) {
 
 	_, err := h.db.Exec(query, args...)
 	if err != nil {
-		fmt.Println("[Update] DB update error:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	fmt.Println("[Update] Product updated")
 	c.JSON(http.StatusOK, gin.H{"message": "Product updated"})
 }
 
@@ -264,28 +250,17 @@ func (h *ProductHandler) UploadImage(c *gin.Context) {
 
 // DELETE /products/:id — удалить товар (только админ)
 func (h *ProductHandler) Delete(c *gin.Context) {
-	fmt.Println("[Delete] Getting user from context...")
 	user, ok := middleware.GetUserFromContext(c)
-	if !ok {
-		fmt.Println("[Delete] User not found in context")
+	if !ok || !h.isAdmin(user.ID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 		return
 	}
-	fmt.Printf("[Delete] User ID = %d, Admin ID = %d\n", user.ID, h.adminID)
-	if user.ID != h.adminID {
-		fmt.Println("[Delete] Access denied: user is not admin")
-		c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
-		return
-	}
-	fmt.Println("[Delete] Access granted, deleting product...")
 
 	id := c.Param("id")
 	_, err := h.db.Exec("DELETE FROM products WHERE id = $1", id)
 	if err != nil {
-		fmt.Println("[Delete] DB delete error:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	fmt.Println("[Delete] Product deleted")
 	c.JSON(http.StatusOK, gin.H{"message": "Product deleted"})
 }

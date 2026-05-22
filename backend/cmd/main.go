@@ -34,7 +34,10 @@ func main() {
 		c.Next()
 	})
 
-	productHandler := handlers.NewProductHandler(db, cfg.AdminUserID)
+	productHandler := handlers.NewProductHandler(db, cfg.AdminUserIDs)
+
+	// Создаём обработчик заказов, передавая список администраторов
+	orderHandler := handlers.NewOrderHandler(db, cfg.TelegramBotToken, cfg.AdminUserIDs)
 
 	r.GET("/products", productHandler.List)
 	r.GET("/products/:id", productHandler.Get)
@@ -46,6 +49,7 @@ func main() {
 		protected.PUT("/products/:id", productHandler.Update)
 		protected.DELETE("/products/:id", productHandler.Delete)
 		protected.POST("/upload", productHandler.UploadImage)
+		protected.POST("/orders", orderHandler.Create)
 	}
 
 	r.Static("/uploads", "/var/www/myshop-tg/uploads")

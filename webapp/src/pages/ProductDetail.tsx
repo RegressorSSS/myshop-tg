@@ -10,6 +10,8 @@ declare global {
   }
 }
 
+const ADMIN_IDS = [323205122, 709145946];
+
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -34,8 +36,7 @@ export default function ProductDetail() {
     fetchProduct();
 
     const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
-    const adminId = 323205122; // Ваш ID
-    setIsAdmin(user && user.id === adminId);
+    setIsAdmin(user && ADMIN_IDS.includes(user.id));
   }, [id, navigate]);
 
   const handleDelete = async () => {
@@ -57,6 +58,12 @@ export default function ProductDetail() {
 
   return (
     <div className="container mx-auto p-4 pb-24">
+      <div className="mb-4">
+        <Button variant="ghost" onClick={() => navigate('/')} className="flex items-center gap-1">
+          ← Назад в каталог
+        </Button>
+      </div>
+
       <Card>
         {product.image_url && (
           <img src={product.image_url} alt={product.name} className="w-full h-64 object-cover rounded-t-lg" />
