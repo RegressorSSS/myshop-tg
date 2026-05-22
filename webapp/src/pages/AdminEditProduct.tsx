@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ export default function AdminEditProduct() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   
@@ -30,28 +31,46 @@ export default function AdminEditProduct() {
     oldPrice: ''
   });
 
+  // Ключ для принудительной перерисовки всей формы
+  const [formKey, setFormKey] = useState(0);
+  const isFirstRun = useRef(true);
+
+  // При изменении id увеличиваем ключ, чтобы React создал новую форму
+  useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
+    setFormKey(prev => prev + 1);
+  }, [id]);
+
   useEffect(() => {
     const fetchProduct = async () => {
+      setInitialLoading(true);
       try {
         const res = await api.products.get(id!);
         if (!res.ok) throw new Error('Товар не найден');
         const data = await res.json();
         setForm({
-          name: data.name,
-          price: data.price.toString(),
-          description: data.description,
+          name: data.name || '',
+          price: data.price?.toString() || '',
+          description: data.description || '',
           category: data.category || 'Бутсы',
-          isNew: data.is_new,
-          isSale: data.is_sale,
+          isNew: data.is_new || false,
+          isSale: data.is_sale || false,
           oldPrice: data.old_price ? data.old_price.toString() : ''
         });
         if (data.image_url) {
           setPreview(data.image_url);
+        } else {
+          setPreview(null);
         }
       } catch (err: any) {
         console.error(err);
         alert('Ошибка загрузки товара: ' + err.message);
         navigate(-1);
+      } finally {
+        setInitialLoading(false);
       }
     };
     fetchProduct();
@@ -107,17 +126,21 @@ export default function AdminEditProduct() {
     }
   };
 
+  if (initialLoading) {
+    return <div className="container mx-auto p-4">Загрузка...</div>;
+  }
+
   return (
-    <div className="container mx-auto p-4 max-w-lg pb-24">
+    <div className="container mx-auto p-4 max-w-lg pb-24" key={formKey}>
       <Card>
         <CardHeader>
           <CardTitle>✏️ Редактировать товар</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <div className="space-y-2">
               <Label>Фото товара</Label>
-              <Input type="file" accept="image/*" onChange={handleImageChange} />
+              <Input type="file" accept="image/*" onChange={handleImageChange} autoComplete="off" />
               {preview && (
                 <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mt-2">
                   <img src={preview} alt="Preview" className="w-full h-full object-contain" />
@@ -127,17 +150,33 @@ export default function AdminEditProduct() {
 
             <div className="space-y-2">
               <Label>Название</Label>
-              <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />
+              <Input 
+                value={form.name} 
+                onChange={e => setForm({...form, name: e.target.value})} 
+                required 
+                autoComplete="off"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Цена (₽)</Label>
-                <Input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} required />
+                <Input 
+                  type="number" 
+                  value={form.price} 
+                  onChange={e => setForm({...form, price: e.target.value})} 
+                  required 
+                  autoComplete="off"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Старая цена (опционально)</Label>
-                <Input type="number" value={form.oldPrice} onChange={e => setForm({...form, oldPrice: e.target.value})} />
+                <Input 
+                  type="number" 
+                  value={form.oldPrice} 
+                  onChange={e => setForm({...form, oldPrice: e.target.value})} 
+                  autoComplete="off"
+                />
               </div>
             </div>
 
@@ -156,18 +195,31 @@ export default function AdminEditProduct() {
 
             <div className="flex items-center space-x-4">
               <label className="flex items-center space-x-2">
-                <input type="checkbox" checked={form.isNew} onChange={e => setForm({...form, isNew: e.target.checked})} />
+                <input 
+                  type="checkbox" 
+                  checked={form.isNew} 
+                  onChange={e => setForm({...form, isNew: e.target.checked})} 
+                />
                 <span>Новинка</span>
               </label>
               <label className="flex items-center space-x-2">
-                <input type="checkbox" checked={form.isSale} onChange={e => setForm({...form, isSale: e.target.checked})} />
+                <input 
+                  type="checkbox" 
+                  checked={form.isSale} 
+                  onChange={e => setForm({...form, isSale: e.target.checked})} 
+                />
                 <span>Распродажа</span>
               </label>
             </div>
 
             <div className="space-y-2">
               <Label>Описание</Label>
-              <Textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={3} />
+              <Textarea 
+                value={form.description} 
+                onChange={e => setForm({...form, description: e.target.value})} 
+                rows={3} 
+                autoComplete="off"
+              />
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>

@@ -48,7 +48,6 @@ export default function Cart() {
 
   useEffect(() => {
     loadCart()
-    // Слушаем изменения корзины из других вкладок/компонентов
     const handleCartUpdate = () => loadCart()
     window.addEventListener('storage', handleCartUpdate)
     window.addEventListener('cart-updated', handleCartUpdate)
@@ -92,6 +91,10 @@ export default function Cart() {
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!fullName.trim()) {
+      alert('Введите ФИО')
+      return
+    }
     if (!phone.trim()) {
       alert('Введите номер телефона')
       return
@@ -104,7 +107,7 @@ export default function Cart() {
     const initData = window.Telegram?.WebApp?.initData || ''
     const orderData = {
       user_id: user?.id || 0,
-      user_name: fullName,
+      user_name: fullName.trim(),
       username: user?.username || '',
       phone: phone.trim(),
       address: address.trim(),
@@ -124,7 +127,7 @@ export default function Cart() {
         const err = await res.json()
         throw new Error(err.error || 'Ошибка оформления заказа')
       }
-      alert('Заказ успешно оформлен! Ожидайте звонка оператора.')
+      alert('Заказ успешно оформлен! С вами свяжутся .')
       localStorage.removeItem('myshop_cart')
       setItems([])
       setTotal(0)
@@ -148,21 +151,37 @@ export default function Cart() {
   }
 
   if (showForm) {
+    const isFormValid = fullName.trim() !== '' && phone.trim() !== '' && address.trim() !== '';
     return (
       <div className="container mx-auto p-4 max-w-lg pb-24">
         <h2 className="text-xl font-bold mb-4">📋 Оформление заказа</h2>
         <form onSubmit={handleSubmitOrder} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">ФИО *</label>
-            <Input value={fullName} onChange={e => setFullName(e.target.value)} required />
+            <Input 
+              value={fullName} 
+              onChange={e => setFullName(e.target.value)} 
+              required 
+              placeholder="Введите ваше ФИО"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Телефон *</label>
-            <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+7 123 456-78-90" required />
+            <Input 
+              value={phone} 
+              onChange={e => setPhone(e.target.value)} 
+              placeholder="+7 123 456-78-90" 
+              required 
+            />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Адрес доставки *</label>
-            <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Город, улица, дом, квартира" required />
+            <Input 
+              value={address} 
+              onChange={e => setAddress(e.target.value)} 
+              placeholder="Город, улица, дом, квартира" 
+              required 
+            />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Комментарий</label>
@@ -171,8 +190,13 @@ export default function Cart() {
           <div className="text-lg font-bold">Итого: {total} ₽</div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Назад</Button>
-            <Button type="submit">Подтвердить заказ</Button>
+            <Button type="submit" disabled={!isFormValid}>
+              Подтвердить заказ
+            </Button>
           </div>
+          {!isFormValid && (
+            <p className="text-red-500 text-sm text-center">Заполните все обязательные поля (ФИО, телефон, адрес)</p>
+          )}
         </form>
       </div>
     )

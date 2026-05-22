@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { CartProvider } from './contexts/CartContext';
@@ -10,6 +11,7 @@ import ProfileOrders from './pages/ProfileOrders';
 import UploadTest from './pages/UploadTest';
 import AdminCreateProduct from './pages/AdminCreateProduct';
 import AdminEditProduct from './pages/AdminEditProduct';
+import ErudaDebug from './components/ErudaDebug';
 
 function Layout() {
   const location = useLocation();
@@ -25,7 +27,10 @@ function Layout() {
         <Route path="/profile/orders" element={<ProfileOrders />} />
         <Route path="/upload-test" element={<UploadTest />} />
         <Route path="/admin/create-product" element={<AdminCreateProduct />} />
-        <Route path="/admin/edit-product/:id" element={<AdminEditProduct />} />
+        <Route 
+          path="/admin/edit-product/:id" 
+          element={<AdminEditProduct key={location.pathname} />} 
+        />
       </Routes>
       {!hideNav && <BottomNav />}
     </div>
@@ -34,17 +39,14 @@ function Layout() {
 
 function App() {
   useEffect(() => {
-    // Инициализация Telegram WebApp
     if (window.Telegram?.WebApp) {
       window.Telegram.WebApp.ready();
       console.log('Telegram WebApp initialized');
-      // Растягиваем приложение на весь экран
       window.Telegram.WebApp.expand();
     } else {
       console.warn('Telegram WebApp not found – запущено вне Telegram');
     }
 
-    // Обновляем layout при изменении размера
     const timer = setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
     }, 300);
@@ -54,6 +56,7 @@ function App() {
   return (
     <BrowserRouter>
       <CartProvider>
+        <ErudaDebug />
         <Layout />
       </CartProvider>
     </BrowserRouter>
